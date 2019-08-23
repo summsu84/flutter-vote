@@ -1,32 +1,81 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_vote/models/comment.dart';
+import 'package:flutter_vote/models/vote.dart';
+import 'package:flutter_vote/service/FireStoreHelper.dart';
 
+class VoteScreen extends StatefulWidget {
+  //final ScreenArguments args = ModalRoute.of(context).settings.arguments;
+  final String voteId;
+  final VoteInfo voteInfo;
 
+  const VoteScreen({this.voteId, this.voteInfo});
+
+  @override
+  _VoteScreen createState() {
+    return _VoteScreen(voteId: this.voteId, voteInfo: this.voteInfo);
+  }
+}
 // Vote 정보를 DB로 부터 가져온다.
 
-class VoteScreen extends StatelessWidget {
+class _VoteScreen extends State<VoteScreen> {
+  String myText = '';
   final GlobalKey<AnimatedListState> _listKey = GlobalKey();
+  StreamSubscription<DocumentSnapshot> subscription;
+  final FireStoreHelper fireStoreHelper = new FireStoreHelper();
+  QuerySnapshot voteSnapshot;
 
   // backing data
   List<Comment> comments = [];
+  List<VoteInfo> voteInfos = [];
+
+  final String voteId;
+  final VoteInfo voteInfo;
+
+  _VoteScreen({this.voteId, this.voteInfo});
+
+  // 초기화 함수
+  @override
+  void initState() {
+    /*fireStoreHelper.getVoteInfo().then((results) {
+      setState(() {
+        voteSnapshot = results;
+        for (var doc in voteSnapshot.documents) {
+          voteInfos.add(VoteInfo.fromDocument(doc));
+        }
+        //커멘트 가져오기
+        fireStoreHelper
+            .getComment(voteInfos.elementAt(0).id)
+            .then((commentResults) {
+          setState(() {
+            voteSnapshot = commentResults;
+            for (var doc in voteSnapshot.documents) {
+              comments.add(Comment.fromDocument(doc));
+            }
+          });
+        });
+      });
+    });*/
+
+    //커멘트 가져오기
+    print("voteId : " + voteId);
+    fireStoreHelper.getComment(voteId).then((commentResults) {
+      setState(() {
+        voteSnapshot = commentResults;
+        for (var doc in voteSnapshot.documents) {
+          comments.add(Comment.fromDocument(doc));
+        }
+      });
+    });
+    super.initState();
+  }
 
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    for (var i = 0; i < 5; i++) {
-      var comment = Comment(
-        userId: 'test_' + i.toString(),
-        username: 'testname_' + i.toString(),
-        avatarUrl:
-            'https://www.caralyns.com/wp-content/uploads/2014/10/sample-avatar.png',
-        comment: '난 반댈새!',
-        timestamp: '99',
-      );
-      comments.add(comment);
-    }
-
-
     return MaterialApp(
         title: 'Flutter Demo',
         theme: ThemeData(
@@ -38,15 +87,12 @@ class VoteScreen extends StatelessWidget {
           bottomNavigationBar: buildVoteBottomNavigationBar(),
           floatingActionButton: FloatingActionButton(
             onPressed: () {
-              Navigator.of(context).pushNamed('/Comment');
+              //Navigator.of(context).pushNamed('/Comment');
             },
             tooltip: 'Comment Show',
             child: Icon(Icons.comment),
           ), //
-        )
-        //home: MyHomePage(title: 'Vode App Demo'),
-//      home: new MyVoteNestedListView(title: 'Flutter Vote App'),
-        );
+        ));
   }
 
   // 투표 화면 생성
@@ -55,12 +101,15 @@ class VoteScreen extends StatelessWidget {
         child: new Container(
       child: new Column(
         children: <Widget>[
-          VoteTitleWidget(),
+          VoteTitleWidget(
+            voteInfo: voteInfo,
+          ),
           VotebButtonWidget(),
           VoteNextButton(),
           SizedBox(
-            height: 300,
-            child: AnimatedList(
+              height: 300,
+              child:
+                  buildListView() /*AnimatedList(
               // Give the Animated list the global key
               key: _listKey,
               initialItemCount: comments.length,
@@ -69,13 +118,49 @@ class VoteScreen extends StatelessWidget {
               itemBuilder: (context, index, animation) {
                 // Breaking the row widget out as a method so that we can
                 // share it with the _removeSingleItem() method.
+                //print("index : " + index.toString());
                 return _buildItem(comments[index], animation);
               },
-            ),
-          ),
+            ),*/
+              ),
         ],
       ),
     ));
+  }
+
+  buildListView() {
+    if (comments != null) {
+      return Column(
+        children: <Widget>[
+          Expanded(
+            child: ListView.builder(
+              itemCount: comments.length,
+              padding: EdgeInsets.all(5.0),
+              itemBuilder: (context, i) {
+                return buildListTile(comments.elementAt(i));
+              },
+            ),
+          ),
+          Divider(),
+        ],
+      );
+    } else {
+      return Text('Loading, Please wait..');
+    }
+  }
+
+  buildListTile(Comment item) {
+    return Column(
+      children: <Widget>[
+        ListTile(
+          title: Text(item.comment),
+          leading: CircleAvatar(
+            backgroundImage: NetworkImage(item.avatar),
+          ),
+        ),
+        Divider(),
+      ],
+    );
   }
 
   // 투표 하단 바 생성
@@ -125,34 +210,8 @@ class VoteScreen extends StatelessWidget {
     );
   }
 
-
-
-  // 투표 정보를 가져온다.
-  Future<List<VoteInfo>>getVoteInfo() async {
-    List<VoteInfo> items = [];
-    var snap = await Firestore.instance
-        .collection('vote_info')
-        .getDocuments();
-
-    for (var doc in snap.documents) {
-      items.add(VoteInfo(name: doc['name']));
-    }
-    return items;
-  }
-
   // This is the animated row with the Card.
   Widget _buildItem(Comment item, Animation animation) {
-    /*return SizeTransition(
-      sizeFactor: animation,
-      child: Card(
-        child: ListTile(
-          title: Text(
-            item,
-            style: TextStyle(fontSize: 20),
-          ),
-        ),
-      ),
-    );*/
     return SizeTransition(
       sizeFactor: animation,
       child: Card(
@@ -162,7 +221,9 @@ class VoteScreen extends StatelessWidget {
             style: TextStyle(fontSize: 20),
           ),
           leading: CircleAvatar(
-            backgroundImage: NetworkImage(item.avatarUrl),
+            //backgroundImage: NetworkImage(item.avatar),
+            backgroundImage: NetworkImage(
+                'https://www.caralyns.com/wp-content/uploads/2014/10/sample-avatar.png'),
           ),
         ),
       ),
@@ -170,150 +231,21 @@ class VoteScreen extends StatelessWidget {
   }
 }
 
-class VoteInfo {
-  final String name;
+class ScreenArguments {
+  final String voteId;
+  final String message;
 
-  VoteInfo({this.name});
-
-  factory VoteInfo.fromDocument(DocumentSnapshot document) {
-    return VoteInfo(
-      name: document['name'],
-
-    );
-  }
-}
-
-class Comment {
-  final String username;
-  final String userId;
-  final String avatarUrl;
-  final String comment;
-  final String timestamp;
-
-  Comment(
-      {this.username,
-      this.userId,
-      this.avatarUrl,
-      this.comment,
-      this.timestamp});
-}
-
-class CommentList extends StatefulWidget {
-  @override
-  State<StatefulWidget> createState() => _CommentListState();
-}
-
-class _CommentListState extends State<CommentList> {
-  @override
-  Widget build(BuildContext context) {
-    // TODO: implement build
-    return Container(child: ListView.builder(itemBuilder: (context, index) {}));
-  }
-}
-
-class MyVoteNestedListView extends StatefulWidget {
-  MyVoteNestedListView({Key key, this.title}) : super(key: key);
-
-  final String title;
-
-  @override
-  _MyVoteNestedListView createState() => new _MyVoteNestedListView();
-}
-
-ScrollController _controller;
-
-class _MyVoteNestedListView extends State<MyVoteNestedListView> {
-  @override
-  void initState() {
-    _controller = ScrollController();
-    _controller.addListener(_scrollListener);
-    super.initState();
-  }
-
-  Color clr = Colors.lightGreen;
-
-  _scrollListener() {
-    if (_controller.offset > _controller.position.minScrollExtent &&
-        !_controller.position.outOfRange) {
-      setState(() {
-        clr = Colors.red;
-      });
-    }
-
-    if (_controller.offset <= _controller.position.minScrollExtent &&
-        !_controller.position.outOfRange) {
-      setState(() {
-        clr = Colors.lightGreen;
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return new Scaffold(
-      appBar: new AppBar(
-          // Here we take the value from the MyHomePage object that was created by
-          // the App.build method, and use it to set our appbar title.
-          title: new Text('투표앱')),
-      body: new Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: new Container(
-          child: CustomScrollView(
-            controller: _controller,
-            slivers: <Widget>[
-              SliverAppBar(
-                pinned: true,
-                expandedHeight: 250.0,
-                flexibleSpace: FlexibleSpaceBar(
-                  title: Text("핫한 20개의 댓글",
-                      style: const TextStyle(
-                        fontSize: 15.0,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.green,
-                      )),
-                  background: Column(
-                    children: <Widget>[
-                      VoteTitleWidget(),
-                      VotebButtonWidget(),
-                      VoteNextButton()
-                    ],
-                  ),
-                ),
-              ),
-              SliverFixedExtentList(
-                itemExtent: 50.0,
-                delegate: SliverChildBuilderDelegate(
-                  (BuildContext context, int index) {
-                    return Container(
-                      alignment: Alignment.center,
-                      color: Colors.lightBlue[100 * (index % 9)],
-                      child: Text('댓글 $index'),
-                    );
-                  },
-                  childCount: 20,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => null),
-          );
-        },
-        tooltip: 'Increment',
-        child: Icon(Icons.add),
-      ), //
-    );
-  }
+  ScreenArguments(this.voteId, this.message);
 }
 
 //Title Section
 class VoteTitleWidget extends StatelessWidget {
+  VoteInfo voteInfo;
+
+  VoteTitleWidget({this.voteInfo}) {
+    print('VoteTitleConstructor');
+  }
+
   @override
   Widget build(BuildContext context) {
     // TODO: implement build
@@ -328,9 +260,9 @@ class VoteTitleWidget extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.only(bottom: 8),
                     child: Text(
-                      '대한민국 국민이라면 일본제품 불매운동은 찬성이다',
+                      voteInfo.desc,
                       style:
-                          TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 10),
                     ),
                   ),
                 ],
@@ -397,24 +329,3 @@ class VoteNextButton extends StatelessWidget {
     );
   }
 }
-
-// 투표 정보를 Firestore에 등록 한다.
-/*
-void postToFireStore(
-    {String mediaUrl, String location, String description}) async {
-  var reference = Firestore.instance.collection('insta_posts');
-
-  reference.add({
-    "username": currentUserModel.username,
-    "location": location,
-    "likes": {},
-    "mediaUrl": mediaUrl,
-    "description": description,
-    "ownerId": googleSignIn.currentUser.id,
-    "timestamp": DateTime.now().toString(),
-  }).then((DocumentReference doc) {
-    String docId = doc.documentID;
-    reference.document(docId).updateData({"postId": docId});
-  });
-}
-*/
