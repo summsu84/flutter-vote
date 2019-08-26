@@ -1,32 +1,62 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_vote/models/comment.dart';
 import "dart:async";
+
+import 'package:flutter_vote/repository/repository.dart';
 
 
 // 댓글 화면
 class CommentScreen extends StatefulWidget {
-  final String postId;
-  final String postOwner;
-  final String postMediaUrl;
+  final String voteId;
 
-  const CommentScreen({this.postId, this.postOwner, this.postMediaUrl});
+
+  const CommentScreen({this.voteId});
   // 갱신 시 _CommentScreenState 호출
   @override
   _CommentScreenState createState() => _CommentScreenState(
-      postId: this.postId,
-      postOwner: this.postOwner,
-      postMediaUrl: this.postMediaUrl);
+      voteId: this.voteId);
 }
 
 // 실제 위젯
 class _CommentScreenState extends State<CommentScreen> {
-  final String postId;
-  final String postOwner;
-  final String postMediaUrl;
 
+  final String voteId;
+  List<Comment> comments;
+  List<DocumentSnapshot> documentSnapshot;
+  var _repository = Repository();
   final TextEditingController _commentController = TextEditingController();
 
-  _CommentScreenState({this.postId, this.postOwner, this.postMediaUrl});
+  _CommentScreenState({this.voteId});
+
+
+  @override
+  void initState() {
+    super.initState();
+    fetchComment();
+  }
+
+  // Comment 가져오기
+  void fetchComment() async {
+    //FirebaseUser currentUser = await _repository.getCurrentUser();
+
+    List<DocumentSnapshot> documentSnapshot = await _repository.fetchComment(voteId);
+    setState((){
+      this.documentSnapshot = documentSnapshot;
+    });
+    /*User user = await _repository.fetchUserDetailsById(currentUser.uid);
+    setState(() {
+      this.currentUser = user;
+    });*/
+
+    //_future =  _repository.fetchComment(voteId);
+
+/*    User user = await _repository.fetchUserDetailsById(currentUser.uid);
+    setState(() {
+      this.currentUser = user;
+    });*/
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -70,7 +100,7 @@ class _CommentScreenState extends State<CommentScreen> {
 
 
   Widget buildComments() {
-    return FutureBuilder<List<Comment>>(
+    return FutureBuilder<List<CommentWidget>>(
         future: getComments(),
         builder: (context, snapshot) {
           if (!snapshot.hasData)
@@ -86,8 +116,8 @@ class _CommentScreenState extends State<CommentScreen> {
 
 
   // CommentList 가져오기
-  Future<List<Comment>> getComments() async {
-    List<Comment> comments = [];
+  Future<List<CommentWidget>> getComments() async {
+    List<CommentWidget> comments = [];
 
     // 파이어베이스로 부터 가져오기
     /*QuerySnapshot data = await Firestore.instance
@@ -100,7 +130,7 @@ class _CommentScreenState extends State<CommentScreen> {
     });*/
     for(var i = 0 ; i < 20; i++)
       {
-        var comment = Comment(
+        var comment = CommentWidget(
           userId: 'test_' + i.toString(),
           username: 'testname_' + i.toString(),
           avatarUrl: 'https://www.caralyns.com/wp-content/uploads/2014/10/sample-avatar.png',
@@ -117,7 +147,7 @@ class _CommentScreenState extends State<CommentScreen> {
   // 댓글 등록 하기
   addComment(String comment) {
 
-    _commentController.clear();
+    /*_commentController.clear();
     Firestore.instance
         .collection("vote_comments")
         .document(postId)
@@ -144,12 +174,12 @@ class _CommentScreenState extends State<CommentScreen> {
       "timestamp": DateTime.now().toString(),
       "postId": postId,
       "mediaUrl": postMediaUrl,
-    });
+    });*/
   }
 }
 
 // 댓글 위젯
-class Comment extends StatelessWidget {
+class CommentWidget extends StatelessWidget {
   final String username;
   final String userId;
   final String avatarUrl;
@@ -157,7 +187,7 @@ class Comment extends StatelessWidget {
   final String timestamp;
 
   //생성자
-  Comment(
+  CommentWidget(
       {this.username,
         this.userId,
         this.avatarUrl,

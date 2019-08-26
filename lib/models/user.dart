@@ -7,6 +7,7 @@ class User {
   final String username;
   final String displayName;
   final String bio;
+  final String uid;
   final Map followers;
   final Map following;
 
@@ -17,6 +18,7 @@ class User {
       this.email,
       this.displayName,
       this.bio,
+        this.uid,
       this.followers,
       this.following});
 
@@ -28,6 +30,7 @@ class User {
       id: document.documentID,
       displayName: document['displayName'],
       bio: document['bio'],
+      uid: document['uid'],
       followers: document['followers'],
       following: document['following'],
     );

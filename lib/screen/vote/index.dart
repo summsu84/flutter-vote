@@ -5,6 +5,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_vote/models/comment.dart';
 import 'package:flutter_vote/models/vote.dart';
+import 'package:flutter_vote/screen/comment/index.dart';
 import 'package:flutter_vote/service/FireStoreHelper.dart';
 
 class VoteScreen extends StatefulWidget {
@@ -88,6 +89,12 @@ class _VoteScreen extends State<VoteScreen> {
           floatingActionButton: FloatingActionButton(
             onPressed: () {
               //Navigator.of(context).pushNamed('/Comment');
+              Navigator.of(context).push(
+                  MaterialPageRoute<bool>(builder: (BuildContext context) {
+                    return CommentScreen(
+                      voteId: voteInfo.id,
+                    );
+                  }));
             },
             tooltip: 'Comment Show',
             child: Icon(Icons.comment),
