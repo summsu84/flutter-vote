@@ -4,71 +4,59 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_vote/models/comment.dart';
+import 'package:flutter_vote/models/user.dart';
 import 'package:flutter_vote/models/vote.dart';
+import 'package:flutter_vote/repository/repository.dart';
 import 'package:flutter_vote/screen/comment/index.dart';
 import 'package:flutter_vote/service/FireStoreHelper.dart';
 
+/**
+ *  투표 화면 위젯
+ */
 class VoteScreen extends StatefulWidget {
   //final ScreenArguments args = ModalRoute.of(context).settings.arguments;
-  final String voteId;
   final VoteInfo voteInfo;
 
-  const VoteScreen({this.voteId, this.voteInfo});
+  //생성자
+  const VoteScreen({this.voteInfo});
 
   @override
   _VoteScreen createState() {
-    return _VoteScreen(voteId: this.voteId, voteInfo: this.voteInfo);
+    return _VoteScreen(voteInfo: this.voteInfo);
   }
 }
-// Vote 정보를 DB로 부터 가져온다.
 
+// Vote 정보를 DB로 부터 가져온다.
 class _VoteScreen extends State<VoteScreen> {
-  String myText = '';
-  final GlobalKey<AnimatedListState> _listKey = GlobalKey();
   StreamSubscription<DocumentSnapshot> subscription;
   final FireStoreHelper fireStoreHelper = new FireStoreHelper();
+  final Repository _repository = Repository();
+
   QuerySnapshot voteSnapshot;
 
   // backing data
   List<Comment> comments = [];
-  List<VoteInfo> voteInfos = [];
+  VoteInfo voteInfo;
+  int voteLike = 0;
 
-  final String voteId;
-  final VoteInfo voteInfo;
-
-  _VoteScreen({this.voteId, this.voteInfo});
+  _VoteScreen({this.voteInfo});
 
   // 초기화 함수
   @override
   void initState() {
-    /*fireStoreHelper.getVoteInfo().then((results) {
-      setState(() {
-        voteSnapshot = results;
-        for (var doc in voteSnapshot.documents) {
-          voteInfos.add(VoteInfo.fromDocument(doc));
-        }
-        //커멘트 가져오기
-        fireStoreHelper
-            .getComment(voteInfos.elementAt(0).id)
-            .then((commentResults) {
-          setState(() {
-            voteSnapshot = commentResults;
-            for (var doc in voteSnapshot.documents) {
-              comments.add(Comment.fromDocument(doc));
-            }
-          });
-        });
-      });
-    });*/
-
     //커멘트 가져오기
-    print("voteId : " + voteId);
-    fireStoreHelper.getComment(voteId).then((commentResults) {
+    fireStoreHelper.getComment(this.voteInfo).then((commentResults) {
       setState(() {
         voteSnapshot = commentResults;
         for (var doc in voteSnapshot.documents) {
           comments.add(Comment.fromDocument(doc));
         }
+        // Coute 가져오기
+        _repository.fetchPostLikesByVoteId(this.voteInfo.id).then((result){
+          setState((){
+            voteLike = result.length.toInt();
+          });
+        });
       });
     });
     super.initState();
@@ -83,7 +71,7 @@ class _VoteScreen extends State<VoteScreen> {
           primarySwatch: Colors.blue,
         ),
         home: Scaffold(
-          appBar: new AppBar(title: new Text('투표앱')),
+          appBar: new AppBar(title: new Text(this.voteInfo.title)),
           body: buildVoteScreen(),
           bottomNavigationBar: buildVoteBottomNavigationBar(),
           floatingActionButton: FloatingActionButton(
@@ -91,10 +79,10 @@ class _VoteScreen extends State<VoteScreen> {
               //Navigator.of(context).pushNamed('/Comment');
               Navigator.of(context).push(
                   MaterialPageRoute<bool>(builder: (BuildContext context) {
-                    return CommentScreen(
-                      voteId: voteInfo.id,
-                    );
-                  }));
+                return CommentScreen(
+                  voteId: voteInfo.id,
+                );
+              }));
             },
             tooltip: 'Comment Show',
             child: Icon(Icons.comment),
@@ -111,30 +99,19 @@ class _VoteScreen extends State<VoteScreen> {
           VoteTitleWidget(
             voteInfo: voteInfo,
           ),
-          VotebButtonWidget(),
+          VotebButtonWidget(
+            voteInfo: voteInfo,
+            repository: _repository,
+            voteLike: voteLike,
+          ),
           VoteNextButton(),
-          SizedBox(
-              height: 300,
-              child:
-                  buildListView() /*AnimatedList(
-              // Give the Animated list the global key
-              key: _listKey,
-              initialItemCount: comments.length,
-              // Similar to ListView itemBuilder, but AnimatedList has
-              // an additional animation parameter.
-              itemBuilder: (context, index, animation) {
-                // Breaking the row widget out as a method so that we can
-                // share it with the _removeSingleItem() method.
-                //print("index : " + index.toString());
-                return _buildItem(comments[index], animation);
-              },
-            ),*/
-              ),
+          SizedBox(height: 300, child: buildListView()),
         ],
       ),
     ));
   }
 
+  // 리스트 뷰
   buildListView() {
     if (comments != null) {
       return Column(
@@ -144,7 +121,7 @@ class _VoteScreen extends State<VoteScreen> {
               itemCount: comments.length,
               padding: EdgeInsets.all(5.0),
               itemBuilder: (context, i) {
-                return buildListTile(comments.elementAt(i));
+                return buildListTile2(comments.elementAt(i));
               },
             ),
           ),
@@ -160,12 +137,131 @@ class _VoteScreen extends State<VoteScreen> {
     return Column(
       children: <Widget>[
         ListTile(
-          title: Text(item.comment),
+          title: Text(item.userId + " 4분전"),
+          subtitle: Column(children: <Widget>[
+            Text(item.comment),
+            Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+              Icon(Icons.thumb_up),
+              Icon(Icons.thumb_down),
+            ]),
+          ]),
           leading: CircleAvatar(
             backgroundImage: NetworkImage(item.avatar),
           ),
+          trailing: Icon(Icons.more_vert),
+          isThreeLine: true,
         ),
         Divider(),
+      ],
+    );
+  }
+
+  buildListTile2(Comment item) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10.0),
+      child: SizedBox(
+        height: 120,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            CircleAvatar(
+              backgroundImage: NetworkImage(item.avatar),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20.0, 0.0, 2.0, 0.0),
+                child: buildDescription(item),
+              ),
+            )
+          ],
+        ),
+      ),
+    );
+  }
+
+  buildDescription(Comment item) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Expanded(
+          flex: 2,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                item.userId,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const Padding(padding: EdgeInsets.only(bottom: 2.0)),
+              Text(
+                item.comment,
+                maxLines: 4,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 14.0,
+                  color: Colors.black54,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          flex: 1,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: <Widget>[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: <Widget>[
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: <Widget>[
+                      Text('2일전 ★',
+                          style: const TextStyle(
+                            fontSize: 12.0,
+                            color: Colors.black54,
+                          )),
+                    ],
+                  ),
+                  Row(
+                    children: <Widget>[
+                      new Icon(Icons.thumb_up, color: Colors.grey, size: 18),
+                      Text('100',
+                          style: const TextStyle(
+                            fontSize: 12.0,
+                            color: Colors.black54,
+                          )),
+                      new SizedBox(
+                        width: 16.0,
+                      ),
+                      new Icon(Icons.thumb_down, color: Colors.grey, size: 18),
+                      Text('100',
+                          style: const TextStyle(
+                            fontSize: 12.0,
+                            color: Colors.black54,
+                          )),
+                      new SizedBox(
+                        width: 16.0,
+                      ),
+                    ],
+                  )
+                ],
+              )
+              /*Text(
+                '2일전 ★',
+                style: const TextStyle(
+                  fontSize: 12.0,
+                  color: Colors.black54,
+                ),
+              ),*/
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -269,7 +365,7 @@ class VoteTitleWidget extends StatelessWidget {
                     child: Text(
                       voteInfo.desc,
                       style:
-                          TextStyle(fontWeight: FontWeight.bold, fontSize: 10),
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                     ),
                   ),
                 ],
@@ -288,6 +384,12 @@ class VoteTitleWidget extends StatelessWidget {
 
 // Button Widget
 class VotebButtonWidget extends StatelessWidget {
+  final VoteInfo voteInfo;
+  final Repository repository;
+  final int voteLike;
+
+  const VotebButtonWidget({this.voteInfo, this.repository, this.voteLike});
+
   @override
   Widget build(BuildContext context) {
     // TODO: implement build
@@ -295,20 +397,51 @@ class VotebButtonWidget extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _buildButtonColumn(Icons.call, '찬성'),
-          _buildButtonColumn(Icons.near_me, '반대'),
+          _buildButtonColumn(Icons.thumb_up, voteLike, '찬성'),
+          _buildButtonColumn(Icons.thumb_down, voteInfo.dislike, '반대'),
         ],
       ),
     );
   }
 
-  Column _buildButtonColumn(IconData icon, String label) {
+  Column _buildButtonColumn(IconData icon, int number, String label) {
+    User currentUser = new User(
+      username: 'tester',
+      id: 'testId',
+      photoUrl:
+          'https://www.caralyns.com/wp-content/uploads/2014/10/sample-avatar.png',
+      email: '',
+      displayName: '',
+      bio: '',
+      uid: 'uid',
+    );
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(icon),
+        GestureDetector(
+          onTap: () {
+            print("Icon Clicked..");
+            //
+            if (label == '찬성') {
+              repository.postLikeByVoteId(voteInfo.id, currentUser);
+            } else {}
+            //.fetchPostLikes(widget.documentSnapshot.reference),
+          },
+          child: Icon(icon),
+        ),
         Container(
+          margin: const EdgeInsets.only(top: 8),
+          child: Text(
+            number.toString(),
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w400,
+            ),
+          ),
+        ),
+        /*Container(
           margin: const EdgeInsets.only(top: 8),
           child: Text(
             label,
@@ -317,7 +450,7 @@ class VotebButtonWidget extends StatelessWidget {
               fontWeight: FontWeight.w400,
             ),
           ),
-        ),
+        ),*/
       ],
     );
   }

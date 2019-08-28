@@ -15,6 +15,7 @@ class _VoteHomeListState extends State<VoteHomeList> {
   QuerySnapshot voteSnapshot;
   List<VoteInfo> voteInfos = [];
 
+
   // 초기화 함수
   @override
   void initState() {
@@ -88,7 +89,6 @@ class _VoteHomeListState extends State<VoteHomeList> {
                 Navigator.of(context).push(
                     MaterialPageRoute<bool>(builder: (BuildContext context) {
                   return VoteScreen(
-                    voteId: item.id,
                     voteInfo: item,
                   );
                 }));

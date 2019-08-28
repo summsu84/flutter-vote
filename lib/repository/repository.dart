@@ -45,6 +45,16 @@ class Repository {
   //Future<List<DocumentSnapshot>> fetchComment(String voteId) => _firebaseProvider.fetchComment(voteId);
   Future<List<DocumentSnapshot>> fetchComment(String voteId) => _firebaseProvider.fetchComment(voteId);
 
+  // 투표 찬성하기
+  Future<void> postLike(DocumentReference reference, User currentUser) => _firebaseProvider.postLike(reference, currentUser);
+  Future<void> postLikeByVoteId(String voteId, User currentUser) => _firebaseProvider.postLikeByVoteId(voteId, currentUser);
+
+  // 투표 좋아요 정보 가져오기
+  Future<List<DocumentSnapshot>> fetchPostLikes(DocumentReference reference) => _firebaseProvider.fetchPostLikeDetails(reference);
+  Future<List<DocumentSnapshot>> fetchPostLikesByVoteId(String voteId) => _firebaseProvider.fetchPostLikesByVoteId(voteId);
+
+
+
 /*
   Future<List<DocumentSnapshot>> retrieveUserPosts(String userId) => _firebaseProvider.retrieveUserPosts(userId);
 

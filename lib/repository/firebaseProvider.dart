@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_vote/models/comment.dart';
+import 'package:flutter_vote/models/like.dart';
 import 'package:flutter_vote/models/user.dart';
 import 'package:flutter_vote/models/vote.dart';
 
@@ -21,7 +22,7 @@ class FirebaseProvider {
         .document(voteId)
         .collection("comment");
 
- /*   comment = Comment(
+    /*   comment = Comment(
         currentUserUid: currentUser.uid,
         imgUrl: imgUrl,
         caption: caption,
@@ -34,12 +35,64 @@ class FirebaseProvider {
         avatar: currentUser.photoUrl,
         comment: text,
         userName: currentUser.username,
-        userId: currentUser.id
-    );
+        userId: currentUser.id);
 
     var map = comment.toMap(comment);
 
     return _collectionRef.add(map);
+  }
+
+  // Like 등록 하기
+  Future<void> postLike(DocumentReference reference, User currentUser) {
+    var _like = Like(
+        ownerName: currentUser.displayName,
+        ownerPhotoUrl: currentUser.photoUrl,
+        ownerUid: currentUser.uid,
+        timeStamp: FieldValue.serverTimestamp());
+    reference
+        .collection('likes')
+        .document(currentUser.uid)
+        .setData(_like.toMap(_like))
+        .then((value) {
+      print("Post Liked");
+    });
+  }
+
+  Future<void> postLikeByVoteId(String voteId, User currentUser) {
+    var _like = Like(
+        ownerName: currentUser.displayName,
+        ownerPhotoUrl: currentUser.photoUrl,
+        ownerUid: currentUser.uid,
+        timeStamp: FieldValue.serverTimestamp());
+
+    CollectionReference _collectionRef = _firestore
+        .collection("vote_info")
+        .document(voteId)
+        .collection('likes');
+    _collectionRef
+        .document(currentUser.uid)
+        .setData(_like.toMap(_like))
+        .then((value) {
+      print("Post Liked");
+    });
+
+  }
+
+  Future<List<DocumentSnapshot>> fetchPostLikeDetails(
+      DocumentReference reference) async {
+    print("REFERENCE : ${reference.path}");
+    QuerySnapshot snapshot = await reference.collection("likes").getDocuments();
+    return snapshot.documents;
+  }
+
+  Future<List<DocumentSnapshot>> fetchPostLikesByVoteId(
+      String voteId) async {
+
+    QuerySnapshot snapshot = await _firestore
+        .collection("vote_info")
+        .document(voteId)
+        .collection('likes').getDocuments();
+    return snapshot.documents;
   }
 
 

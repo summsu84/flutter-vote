@@ -1,6 +1,7 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_vote/models/vote.dart';
 
 class FireStoreHelper {
 
@@ -25,9 +26,8 @@ class FireStoreHelper {
   }
 
   // 베스트 5개 댓글 가져오기
-  getComment(voteId) async {
-    print('vote id : ' + voteId);
-    return await Firestore.instance.collection('vote_comment').document(voteId).collection('comment').getDocuments();
+  getComment(VoteInfo voteInfo) async {
+    return await Firestore.instance.collection('vote_comment').document(voteInfo.id).collection('comment').getDocuments();
   }
 
   // 투표 정보 등록
