@@ -39,6 +39,10 @@ class Repository {
 
   Future<String> uploadImageToStorage(File imageFile) => _firebaseProvider.uploadImageToStorage(imageFile);*/
 
+  //기본 투표 정보 가져오기
+  Future<List<DocumentSnapshot>> fetchVoteInfo() => _firebaseProvider.fetchVoteInfo();
+
+
   //투 표 등록
   Future<void> addComment(User currentUser, String voteId, String text) => _firebaseProvider.addComment(currentUser, voteId, text);
   // 댓글 가져오기
@@ -49,9 +53,23 @@ class Repository {
   Future<void> postLike(DocumentReference reference, User currentUser) => _firebaseProvider.postLike(reference, currentUser);
   Future<void> postLikeByVoteId(String voteId, User currentUser) => _firebaseProvider.postLikeByVoteId(voteId, currentUser);
 
+  Future<void> postUnlikeByVoteId(String voteId, User currentUser) => _firebaseProvider.postUnlikeByVoteId(voteId, currentUser);
+  Future<void> postDisLikeByVoteId(String voteId, User currentUser) => _firebaseProvider.postDisLikeByVoteId(voteId, currentUser);
+
+  // 투표 체크 하기
+  Future<bool> checkIfUserLikedOrNot(User userId, DocumentReference reference) => _firebaseProvider.checkIfUserLikedOrNot(userId, reference);
+  Future<bool> checkIfUserLikedOrNotByVoteId(String voteId, User currentUser) => _firebaseProvider.checkIfUserLikedOrNotByVoteId(voteId, currentUser);
+  Future<bool> checkIfUserDisLikedOrNot(User userId, DocumentReference reference) => _firebaseProvider.checkIfUserDisLikedOrNot(userId, reference);
+
+
   // 투표 좋아요 정보 가져오기
   Future<List<DocumentSnapshot>> fetchPostLikes(DocumentReference reference) => _firebaseProvider.fetchPostLikeDetails(reference);
   Future<List<DocumentSnapshot>> fetchPostLikesByVoteId(String voteId) => _firebaseProvider.fetchPostLikesByVoteId(voteId);
+
+  Future<List<DocumentSnapshot>> fetchPostDisLikesByVoteId(String voteId) => _firebaseProvider.fetchPostDisLikesByVoteId(voteId);
+
+  Future<Map<String, List<DocumentSnapshot>>> fetchPostLikeAndDisLikeByBoteId(String voteId) => _firebaseProvider.fetchPostLikeAndDisLikeByBoteId(voteId);
+
 
 
 
