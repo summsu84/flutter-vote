@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_vote/models/user.dart';
 import 'package:flutter_vote/models/vote.dart';
+import 'package:flutter_vote/models/voteCount.dart';
 
 import 'firebaseProvider.dart';
 
@@ -39,15 +40,21 @@ class Repository {
 
   Future<String> uploadImageToStorage(File imageFile) => _firebaseProvider.uploadImageToStorage(imageFile);*/
 
-  //기본 투표 정보 가져오기
+  ///기본 투표 정보 가져오기
+  ///1. 투표 정보가 collection - document - collection 형태의 구조로 되어 있음
   Future<List<DocumentSnapshot>> fetchVoteInfo() => _firebaseProvider.fetchVoteInfo();
+  ///2. 추천수가 많은 투표 Collection
+  Future<List<DocumentSnapshot>> fetchVoteInfoByLike() => _firebaseProvider.fetchVoteInfoByLike();
 
 
   //투 표 등록
   Future<void> addComment(User currentUser, String voteId, String text) => _firebaseProvider.addComment(currentUser, voteId, text);
   // 댓글 가져오기
   //Future<List<DocumentSnapshot>> fetchComment(String voteId) => _firebaseProvider.fetchComment(voteId);
+  ///1. 기본 댓글 정보 가져오기
   Future<List<DocumentSnapshot>> fetchComment(String voteId) => _firebaseProvider.fetchComment(voteId);
+  ///2. 타임스탬프 기반 댓글 정보 가져오기
+  Future<List<DocumentSnapshot>> fetchCommentByTimestamp(String voteId) => _firebaseProvider.fetchCommentByTimestamp(voteId);
 
   // 투표 찬성하기
   Future<void> postLike(DocumentReference reference, User currentUser) => _firebaseProvider.postLike(reference, currentUser);
@@ -56,11 +63,37 @@ class Repository {
   Future<void> postUnlikeByVoteId(String voteId, User currentUser) => _firebaseProvider.postUnlikeByVoteId(voteId, currentUser);
   Future<void> postDisLikeByVoteId(String voteId, User currentUser) => _firebaseProvider.postDisLikeByVoteId(voteId, currentUser);
 
-  // 투표 체크 하기
+  /// 투표 체크 하기
+  /// 1. 좋아요 투표 여부 체크하기
   Future<bool> checkIfUserLikedOrNot(User userId, DocumentReference reference) => _firebaseProvider.checkIfUserLikedOrNot(userId, reference);
+
+  /// 2. 좋아요 투표 여부 체크 하기
   Future<bool> checkIfUserLikedOrNotByVoteId(String voteId, User currentUser) => _firebaseProvider.checkIfUserLikedOrNotByVoteId(voteId, currentUser);
+
+  /// 3. 안좋아요 투표 여부 체크 하기 (투표 ID 기반)
   Future<bool> checkIfUserDisLikedOrNot(User userId, DocumentReference reference) => _firebaseProvider.checkIfUserDisLikedOrNot(userId, reference);
 
+  /// 카운팅 정보
+  /// 1. 뷰 카운팅
+  /// 2. 좋아요 카운팅
+  /// 3. 안좋아요 카운팅
+  /// 4. 댓글 카운팅
+  /// 5. 통합 카운팅
+  Future<VoteCount> fetchVoteCount(DocumentReference reference) async {
+
+    int _viewCount = await _firebaseProvider.fetchVoteViewCount(reference);
+    VoteCount voteCount = new VoteCount(
+      viewCount: _viewCount,
+      likeCount: 0,
+      dislikeCount: 0,
+      commentCount: 0
+    );
+/*    int _viewLikeCount = _firebaseProvider.fetchVoteLikeCount(reference);
+    int _viewLikeCount = _firebaseProvider.fetchVoteLikeCount(reference);
+    int _viewLikeCount = _firebaseProvider.fetchVoteLikeCount(reference);*/
+
+    return voteCount;
+  }
 
   // 투표 좋아요 정보 가져오기
   Future<List<DocumentSnapshot>> fetchPostLikes(DocumentReference reference) => _firebaseProvider.fetchPostLikeDetails(reference);
@@ -71,6 +104,7 @@ class Repository {
   Future<Map<String, List<DocumentSnapshot>>> fetchPostLikeAndDisLikeByBoteId(String voteId) => _firebaseProvider.fetchPostLikeAndDisLikeByBoteId(voteId);
 
 
+  Future<int> fetchVoteViewCountByVoteId(String voteId) => _firebaseProvider.fetchVoteViewCountByVoteId(voteId);
 
 
 /*

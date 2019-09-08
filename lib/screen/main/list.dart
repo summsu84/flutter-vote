@@ -6,8 +6,10 @@ import 'package:flutter_vote/screen/vote/index.dart';
 import 'package:flutter_vote/service/FireStoreHelper.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
-//메인 화면
+///메인 화면
+///1. stateful widget 선언
 class VoteHomeList extends StatefulWidget {
+  /// 위젯이 호출되면, createState를 호출 한다.
   @override
   _VoteHomeListState createState() => _VoteHomeListState();
 }
@@ -22,26 +24,17 @@ class _VoteHomeListState extends State<VoteHomeList> {
   QuerySnapshot voteSnapshot;
   List<VoteInfo> voteInfos = [];
 
-  // 초기화 함수
+  ///initState를 호출한다.
   @override
   void initState() {
-/*    fireStoreHelper.getVoteInfo().then((results) {
-      setState(() {
-        voteSnapshot = results;
-        for (var doc in voteSnapshot.documents) {
-          voteInfos.add(VoteInfo.fromDocument(doc));
-        }
-      });
-    });
 
-    super.initState();*/
     /// 초기화 후, _getVoteData를 가져온다.
     super.initState();
     print(">>>>>>init");
     voteDocuments = _getVoteData();
   }
 
-  //FutureBuilder 사용
+  /// setState 호출 된 뒤, builder를 호출 한다.
   @override
   Widget build(BuildContext context) {
     ///FutureBuilder 를 통해서, 데이터를 가져온뒤, builder 를 수행 한다.
@@ -83,22 +76,10 @@ class _VoteHomeListState extends State<VoteHomeList> {
         itemBuilder: (context, index) {
           return _buildItemByFutureBuilder(values[index], values[index].reference);
         });
-
-    /*return new ListView.builder(
-        itemCount: values.length,
-        itemBuilder: (BuildContext context, int index) {
-          return new Column(
-            children: <Widget>[
-              new ListTile(
-                title: new Text(values[index]),
-              ),
-              new Divider(height: 2.0,),
-            ],
-          );
-        },
-      );*/
   }
 
+  /// 투표 정보 관련 카운팅 정보를 가져온다.
+  /// 해당 방법은 다큐먼트의 컬렉션을 생성하여 뷰 카운트를 가져오는 방식
   Future<Map> _getVoteViewCount(
       DocumentReference reference) async {
 
@@ -114,7 +95,7 @@ class _VoteHomeListState extends State<VoteHomeList> {
     return map;
   }
 
-  //FutureBuilder 형태의 세부 아이템 템플릿
+  /// FutureBuilder를 통해서, 세부 아이템 템플릿 정보를 가져온다.
   Widget _buildItemByFutureBuilder(DocumentSnapshot value, DocumentReference reference) {
     return FutureBuilder(
         future: _getVoteViewCount(reference),
@@ -122,7 +103,7 @@ class _VoteHomeListState extends State<VoteHomeList> {
           switch (snapshot.connectionState) {
             case ConnectionState.none:
             case ConnectionState.waiting:
-              return new Text('loading...');
+              /*return Center(child: CircularProgressIndicator(),);*/
             default:
               if (snapshot.hasError)
                 return new Text('Error: ${snapshot.error}');
@@ -147,22 +128,17 @@ class _VoteHomeListState extends State<VoteHomeList> {
             fit: FlexFit.loose,
             child: GestureDetector(
               onTap: () {
-                Navigator.of(context).push(
-                    MaterialPageRoute<bool>(builder: (BuildContext context) {
-                  return VoteScreen(
-                    voteInfo: item,
-                  );
-                }));
+
+                /// 이미지 를 클릭 시, 해당 투표 상세 정보로 넘어간다.
+                /// 1. 이때, 먼저 조회수를 증가 시키고, 투표 정보로 넘어간다.
+                navigateToVoteInfo(doc, item);
+
               },
               child: new Image.network(
                 item.imageUrl,
                 fit: BoxFit.cover,
               ),
             )
-/*          child: new Image.network(
-            item.imageUrl,
-            fit: BoxFit.cover,
-          ),*/
             ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -180,7 +156,7 @@ class _VoteHomeListState extends State<VoteHomeList> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: <Widget>[
                   new Icon(
-                    FontAwesomeIcons.heart,
+                    FontAwesomeIcons.eye,
                   ),
                   new Text(
                     map['viewCount'].toString(),
@@ -206,43 +182,7 @@ class _VoteHomeListState extends State<VoteHomeList> {
             ],
           ),
         ),
-        /*Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: Text(
-            "Liked by pawankumar, pk and 528,331 others",
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16.0, 16.0, 0.0, 8.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: <Widget>[
-              new Container(
-                height: 40.0,
-                width: 40.0,
-                decoration: new BoxDecoration(
-                  shape: BoxShape.circle,
-                  image: new DecorationImage(
-                      fit: BoxFit.fill,
-                      image: new NetworkImage(
-                          "https://pbs.twimg.com/profile_images/916384996092448768/PF1TSFOE_400x400.jpg")),
-                ),
-              ),
-              new SizedBox(
-                width: 10.0,
-              ),
-              Expanded(
-                child: new TextField(
-                  decoration: new InputDecoration(
-                    border: InputBorder.none,
-                    hintText: "Add a comment...",
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),*/
+
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
           child: Text("등록일 : 1 Day Ago", style: TextStyle(color: Colors.grey)),
@@ -250,4 +190,33 @@ class _VoteHomeListState extends State<VoteHomeList> {
       ],
     );
   }
+
+  void navigateToVoteInfo(DocumentSnapshot snapshot, VoteInfo item) async {
+    print('before update');
+    await updateVoteNumber(snapshot, item);
+    /// navigate
+    print('after update');
+    Navigator.of(context).push(
+        MaterialPageRoute<bool>(builder: (BuildContext context) {
+          return VoteScreen(
+            voteInfo: item,
+            documentSnapshot: snapshot,
+          );
+        }));
+  }
+
+  Future<void> updateVoteNumber(DocumentSnapshot snapshot, VoteInfo item) async
+  {
+    ///1. 해당 투표 정보의 조회수 정보를 가져온다.
+    print('item number ${item.voteNumber}');
+
+    /// ** 레퍼런스로 바로 접근 가능한가??
+
+    int viewNumber = await _repository.fetchVoteViewCountByVoteId(item.id);
+
+    await snapshot.reference.updateData({
+      'voteNumber': viewNumber + 1}
+    );
+    print('item number update');
+   }
 }

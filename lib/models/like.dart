@@ -1,7 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+///좋아요 모델
+///
 class Like {
-
   String ownerName;
   String ownerPhotoUrl;
   String ownerUid;

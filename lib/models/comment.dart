@@ -1,5 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+///커멘트 모델
+///1. 사용자 이름
+///2. 사용자 아이디
+///3. 아바타 정보
+///4. 댓글 정보
+///5. 사용자 Uid
 class Comment {
   final String userName;
   final String userId;

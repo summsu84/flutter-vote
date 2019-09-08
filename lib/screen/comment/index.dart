@@ -12,6 +12,7 @@ import 'package:flutter_vote/repository/repository.dart';
 /// - 댓글 등록 후 리프레쉬 기능
 class CommentScreen extends StatefulWidget {
   final String voteId;
+
   const CommentScreen({this.voteId});
 
   // 갱신 시 _CommentScreenState 호출
@@ -26,8 +27,53 @@ class _CommentScreenState extends State<CommentScreen> {
   List<DocumentSnapshot> documentSnapshot;
   var _repository = Repository();
   final TextEditingController _commentController = TextEditingController();
+  final isTextEdit = false;
 
   _CommentScreenState({this.voteId});
+
+  @override
+  void dispose() {
+    super.dispose();
+    _commentController?.dispose();
+  }
+
+  ///빌드 시작 지점
+  ///1. FutureBuilder 사용
+  Widget build(BuildContext context) {
+    var futureBuilder = new FutureBuilder(
+      future: _getVoteComments(),
+      builder: (BuildContext context, AsyncSnapshot snapshot) {
+        switch (snapshot.connectionState) {
+          case ConnectionState.none:
+          case ConnectionState.waiting:
+            return new Text('댓글 가져오는 중...');
+          default:
+            if (snapshot.hasError)
+              return new Text('Error: ${snapshot.error}');
+            else
+              return buildPage(context, snapshot);
+
+          /// buildPage 호출
+        }
+      },
+    );
+    return new Scaffold(
+      appBar: AppBar(
+          automaticallyImplyLeading: true,
+          //`true` if you want Flutter to automatically add Back Button when needed,
+          //or `false` if you want to force your own back button every where
+          title: Text(
+            "댓글보기",
+            style: TextStyle(color: Colors.black),
+          ),
+          backgroundColor: Colors.white,
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back),
+            onPressed: () => Navigator.pop(context, false),
+          )),
+      body: futureBuilder,
+    );
+  }
 
   //FutureBuilder로 가져오기
   // 리스트 뷰
@@ -57,7 +103,7 @@ class _CommentScreenState extends State<CommentScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10.0),
       child: SizedBox(
-        height: 120,
+        height: 130,
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
@@ -149,45 +195,10 @@ class _CommentScreenState extends State<CommentScreen> {
                   )
                 ],
               )
-              /*Text(
-                '2일전 ★',
-                style: const TextStyle(
-                  fontSize: 12.0,
-                  color: Colors.black54,
-                ),
-              ),*/
             ],
           ),
         ),
       ],
-    );
-  }
-
-  Widget build(BuildContext context) {
-    var futureBuilder = new FutureBuilder(
-      future: _getVoteComments(),
-      builder: (BuildContext context, AsyncSnapshot snapshot) {
-        switch (snapshot.connectionState) {
-          case ConnectionState.none:
-          case ConnectionState.waiting:
-            return new Text('댓글 가져오는 중...');
-          default:
-            if (snapshot.hasError)
-              return new Text('Error: ${snapshot.error}');
-            else
-              return buildPage(context, snapshot);
-        }
-      },
-    );
-    return new Scaffold(
-      appBar: AppBar(
-        title: Text(
-          "댓글보기",
-          style: TextStyle(color: Colors.black),
-        ),
-        backgroundColor: Colors.white,
-      ),
-      body: futureBuilder,
     );
   }
 
@@ -200,30 +211,13 @@ class _CommentScreenState extends State<CommentScreen> {
     return voteDocuments;
   }
 
-/*  @override
-  Widget build(BuildContext context) {
-    // Scaffold Layout
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          "댓글보기",
-          style: TextStyle(color: Colors.black),
-        ),
-        backgroundColor: Colors.white,
-      ),
-      body: buildPage(),
-    );
-  }*/
-
-  // 위젯 생성
+  /// Future를 통해서, 댓글 정보를 가져오게 되면, 해당 위젯을 호출 한다.
   Widget buildPage(BuildContext context, AsyncSnapshot snapshot) {
     return Column(
       children: [
         // 화면 채우기
         Expanded(
-          child:
-              //buildComments(),
-              buildListView(context, snapshot),
+          child: buildListView(context, snapshot),
         ),
         Divider(),
         // 아래는 댓글 쓰기 위젯
@@ -244,8 +238,6 @@ class _CommentScreenState extends State<CommentScreen> {
       ],
     );
   }
-
-
 
   buildListTile(Comment item) {
     return Column(
@@ -311,49 +303,6 @@ class _CommentScreenState extends State<CommentScreen> {
     );
   }
 
-  Widget buildComments() {
-    return FutureBuilder<List<CommentWidget>>(
-        future: getComments(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData)
-            return Container(
-                alignment: FractionalOffset.center,
-                child: CircularProgressIndicator());
-
-          return ListView(
-            children: snapshot.data,
-          );
-        });
-  }
-
-  // CommentList 가져오기
-  Future<List<CommentWidget>> getComments() async {
-    List<CommentWidget> comments = [];
-
-    // 파이어베이스로 부터 가져오기
-    /*QuerySnapshot data = await Firestore.instance
-        .collection("insta_comments")
-        .document(postId)
-        .collection("comments")
-        .getDocuments();
-    data.documents.forEach((DocumentSnapshot doc) {
-      comments.add(Comment.fromDocument(doc));
-    });*/
-    for (var i = 0; i < 20; i++) {
-      var comment = CommentWidget(
-        userId: 'test_' + i.toString(),
-        username: 'testname_' + i.toString(),
-        avatarUrl:
-            'https://www.caralyns.com/wp-content/uploads/2014/10/sample-avatar.png',
-        comment: '난 반댈새!',
-        timestamp: '99',
-      );
-      comments.add(comment);
-    }
-
-    return comments;
-  }
-
   // 댓글 등록 하기
   addComment(String comment) {
     _commentController.clear();
@@ -370,99 +319,5 @@ class _CommentScreenState extends State<CommentScreen> {
       uid: 'uid',
     );
     _repository.addComment(currentUser, voteId, comment);
-
-  }
-}
-
-/*
-class CustomListItemTwo extends StatelessWidget {
-  CustomListItemTwo({
-    Key key,
-    this.thumbnail,
-    this.title,
-    this.subtitle,
-    this.author,
-    this.publishDate,
-    this.readDuration,
-  }) : super(key: key);
-
-  final Widget thumbnail;
-  final String title;
-  final String subtitle;
-  final String author;
-  final String publishDate;
-  final String readDuration;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10.0),
-      child: SizedBox(
-        height: 100,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            AspectRatio(
-              aspectRatio: 1.0,
-              child: thumbnail,
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20.0, 0.0, 2.0, 0.0),
-                child: _ArticleDescription(
-                  title: title,
-                  subtitle: subtitle,
-                  author: author,
-                  publishDate: publishDate,
-                  readDuration: readDuration,
-                ),
-              ),
-            )
-          ],
-        ),
-      ),
-    );
-  }
-}*/
-
-// 댓글 위젯
-class CommentWidget extends StatelessWidget {
-  final String username;
-  final String userId;
-  final String avatarUrl;
-  final String comment;
-  final String timestamp;
-
-  //생성자
-  CommentWidget(
-      {this.username,
-      this.userId,
-      this.avatarUrl,
-      this.comment,
-      this.timestamp});
-
-  /*factory Comment.fromDocument(DocumentSnapshot document) {
-    return Comment(
-      username: document['username'],
-      userId: document['userId'],
-      comment: document["comment"],
-      timestamp: document["timestamp"],
-      avatarUrl: document["avatarUrl"],
-    );
-  }*/
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: <Widget>[
-        ListTile(
-          title: Text(comment),
-          leading: CircleAvatar(
-            backgroundImage: NetworkImage(avatarUrl),
-          ),
-        ),
-        Divider(),
-      ],
-    );
   }
 }

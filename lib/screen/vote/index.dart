@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_vote/models/comment.dart';
 import 'package:flutter_vote/models/user.dart';
@@ -10,56 +11,65 @@ import 'package:flutter_vote/repository/repository.dart';
 import 'package:flutter_vote/screen/comment/index.dart';
 import 'package:flutter_vote/service/FireStoreHelper.dart';
 
-/**
- *  투표 화면 위젯
- */
-class VoteScreen extends StatefulWidget {
-  //final ScreenArguments args = ModalRoute.of(context).settings.arguments;
-  final VoteInfo voteInfo;
 
+/// 투표 화면
+class VoteScreen extends StatefulWidget {
+
+  final DocumentSnapshot documentSnapshot;
+  final VoteInfo voteInfo;
   //생성자
-  const VoteScreen({this.voteInfo});
+  const VoteScreen({this.voteInfo, this.documentSnapshot});
 
   @override
   _VoteScreen createState() {
-    return _VoteScreen(voteInfo: this.voteInfo);
+    return _VoteScreen(voteInfo: this.voteInfo, documentSnapshot: this.documentSnapshot);
   }
 }
 
 // Vote 정보를 DB로 부터 가져온다.
 class _VoteScreen extends State<VoteScreen> {
   StreamSubscription<DocumentSnapshot> subscription;
-  final FireStoreHelper fireStoreHelper = new FireStoreHelper();
   final Repository _repository = Repository();
-
-  QuerySnapshot voteSnapshot;
-
+  final DocumentSnapshot documentSnapshot;
   // backing data
   List<Comment> comments = [];
   VoteInfo voteInfo;
   int voteLike = 0;
+  int voteDisLike = 0;
 
-  _VoteScreen({this.voteInfo});
+  _VoteScreen({this.voteInfo, this.documentSnapshot});
 
   // 초기화 함수
   @override
   void initState() {
     //커멘트 가져오기
-    fireStoreHelper.getComment(this.voteInfo).then((commentResults) {
-      setState(() {
-        voteSnapshot = commentResults;
-        for (var doc in voteSnapshot.documents) {
-          comments.add(Comment.fromDocument(doc));
-        }
-        // Coute 가져오기
-        _repository.fetchPostLikesByVoteId(this.voteInfo.id).then((result){
-          setState((){
-            voteLike = result.length.toInt();
-          });
+    /// 아래는 기존 방법
+
+    _repository.fetchCommentByTimestamp(this.voteInfo.id)
+    .then((commentResult) {
+      /// callback 함수
+      /// 조회 개수 정보를가져온다.
+      List<DocumentSnapshot> list = commentResult;
+      for (var doc in list) {
+        comments.add(Comment.fromDocument(doc));
+      }
+      /// 조회 개수 정보 검색
+      _repository
+          .fetchPostLikeAndDisLikeByBoteId(this.voteInfo.id)
+          .then((result) {
+        setState(() {
+          Map map = result;
+          voteLike = map['like'].length.toInt();
+          voteDisLike = map['dislike'].length.toInt();
+          print('like: ' +
+              voteLike.toString() +
+              ' unlike : ' +
+              voteDisLike.toString());
         });
       });
     });
     super.initState();
+
   }
 
   // This widget is the root of your application.
@@ -71,24 +81,37 @@ class _VoteScreen extends State<VoteScreen> {
           primarySwatch: Colors.blue,
         ),
         home: Scaffold(
-          appBar: new AppBar(title: new Text(this.voteInfo.title)),
+          appBar: new AppBar(
+              automaticallyImplyLeading: true,
+              //`true` if you want Flutter to automatically add Back Button when needed,
+              //or `false` if you want to force your own back button every where
+              title: new Text(this.voteInfo.title),
+              leading: IconButton(
+                icon: Icon(Icons.arrow_back),
+                onPressed: () => Navigator.pop(context, false),
+              )),
           body: buildVoteScreen(),
           bottomNavigationBar: buildVoteBottomNavigationBar(),
-          floatingActionButton: FloatingActionButton(
-            onPressed: () {
-              //Navigator.of(context).pushNamed('/Comment');
-              Navigator.of(context).push(
-                  MaterialPageRoute<bool>(builder: (BuildContext context) {
-                return CommentScreen(
-                  voteId: voteInfo.id,
-                );
-              }));
-            },
-            tooltip: 'Comment Show',
-            child: Icon(Icons.comment),
-          ), //
+
         ));
   }
+
+  ///Floating
+  ///floatingActionButton: FloatingActionButton(
+  //            onPressed: () {
+  //              //Navigator.of(context).pushNamed('/Comment');
+  //
+  //              Navigator.of(context).push(
+  //                  MaterialPageRoute<bool>(builder: (BuildContext context) {
+  //                return CommentScreen(
+  //                  voteId: voteInfo.id,
+  //                );
+  //              }));
+  //            },
+  //            tooltip: 'Comment Show',
+  //            child: Icon(Icons.comment),
+  //          ), //
+
 
   // 투표 화면 생성
   buildVoteScreen() {
@@ -99,18 +122,17 @@ class _VoteScreen extends State<VoteScreen> {
           VoteTitleWidget(
             voteInfo: voteInfo,
           ),
-          VotebButtonWidget(
-            voteInfo: voteInfo,
-            repository: _repository,
-            voteLike: voteLike,
-          ),
-          VoteNextButton(),
-          SizedBox(height: 300, child: buildListView()),
+          _buildButtons(),
+          Divider(),
+          Expanded(
+            child: buildListView(),
+          )
+
         ],
       ),
     ));
   }
-
+// SizedBox(height: 300, child: buildListView()),
   // 리스트 뷰
   buildListView() {
     if (comments != null) {
@@ -126,6 +148,20 @@ class _VoteScreen extends State<VoteScreen> {
             ),
           ),
           Divider(),
+          ListTile(
+            trailing: OutlineButton(
+              onPressed: () {
+                Navigator.of(context).push(
+                                      MaterialPageRoute<bool>(builder: (BuildContext context) {
+                                    return CommentScreen(
+                                      voteId: voteInfo.id,
+                                    );
+                                  }));
+              },
+              borderSide: BorderSide.none,
+              child: Text("댓글 더보기 >"),
+            ),
+          ),
         ],
       );
     } else {
@@ -156,6 +192,9 @@ class _VoteScreen extends State<VoteScreen> {
     );
   }
 
+  /// 댓글 레이아웃
+  /// 1. 아바타
+  /// 2. 댓글 정보
   buildListTile2(Comment item) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10.0),
@@ -179,6 +218,7 @@ class _VoteScreen extends State<VoteScreen> {
     );
   }
 
+  /// 커맨트 설명 정보
   buildDescription(Comment item) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -202,7 +242,7 @@ class _VoteScreen extends State<VoteScreen> {
                 maxLines: 4,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  fontSize: 14.0,
+                  fontSize: 13.0,
                   color: Colors.black54,
                 ),
               ),
@@ -332,73 +372,15 @@ class _VoteScreen extends State<VoteScreen> {
       ),
     );
   }
-}
 
-class ScreenArguments {
-  final String voteId;
-  final String message;
-
-  ScreenArguments(this.voteId, this.message);
-}
-
-//Title Section
-class VoteTitleWidget extends StatelessWidget {
-  VoteInfo voteInfo;
-
-  VoteTitleWidget({this.voteInfo}) {
-    print('VoteTitleConstructor');
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // TODO: implement build
-    return Container(
-        padding: const EdgeInsets.all(32),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Container(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Text(
-                      voteInfo.desc,
-                      style:
-                          TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            /*3*/
-            Icon(
-              Icons.star,
-              color: Colors.red[500],
-            ),
-            Text('41'),
-          ],
-        ));
-  }
-}
-
-// Button Widget
-class VotebButtonWidget extends StatelessWidget {
-  final VoteInfo voteInfo;
-  final Repository repository;
-  final int voteLike;
-
-  const VotebButtonWidget({this.voteInfo, this.repository, this.voteLike});
-
-  @override
-  Widget build(BuildContext context) {
-    // TODO: implement build
+  //투표 빌드 항목 설정
+  Widget _buildButtons() {
     return Container(
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
           _buildButtonColumn(Icons.thumb_up, voteLike, '찬성'),
-          _buildButtonColumn(Icons.thumb_down, voteInfo.dislike, '반대'),
+          _buildButtonColumn(Icons.thumb_down, voteDisLike, '반대'),
         ],
       ),
     );
@@ -425,8 +407,202 @@ class VotebButtonWidget extends StatelessWidget {
             print("Icon Clicked..");
             //
             if (label == '찬성') {
-              repository.postLikeByVoteId(voteInfo.id, currentUser);
-            } else {}
+              postLikeByVoteId(voteInfo.id, currentUser);
+              //repository.postLikeByVoteId(voteInfo.id, currentUser);
+            } else {
+              postDisLikeByVoteId(voteInfo.id, currentUser);
+            }
+            //.fetchPostLikes(widget.documentSnapshot.reference),
+          },
+          child: Icon(icon),
+        ),
+        Container(
+          margin: const EdgeInsets.only(top: 8),
+          child: Text(
+            number.toString(),
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w400,
+            ),
+          ),
+        ),
+        /*Container(
+          margin: const EdgeInsets.only(top: 8),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w400,
+            ),
+          ),
+        ),*/
+      ],
+    );
+  }
+
+  /// 투표 버튼을 클릭 한다.
+  Future<void> postLikeByVoteId(String id, User currentUser) async {
+    // 체크 하기
+    print('postLikeByBoteId start');
+    bool isChecked = await _repository.checkIfUserLikedOrNotByVoteId(
+        voteInfo.id, currentUser);
+    print('isChecked : ' + isChecked.toString());
+    if (isChecked) {
+      //체크가 된 상태이면, 체크를 해제 한다.
+      print('post unliking..');
+      await _repository.postUnlikeByVoteId(voteInfo.id, currentUser);
+      print('post unliking..finnish');
+      _repository
+          .fetchPostLikeAndDisLikeByBoteId(this.voteInfo.id)
+          .then((result) {
+        setState(() {
+          Map map = result;
+          voteLike = map['like'].length.toInt();
+          //voteDisLike = map['dislike'].length.toInt();
+        });
+      });
+    } else {
+      print('post liking..');
+      await _repository.postLikeByVoteId(voteInfo.id, currentUser);
+      print('post liking..finnish');
+      _repository
+          .fetchPostLikeAndDisLikeByBoteId(this.voteInfo.id)
+          .then((result) {
+        setState(() {
+          Map map = result;
+          voteLike = map['like'].length.toInt();
+          //voteDisLike = map['dislike'].length.toInt();
+        });
+      });
+    }
+  }
+
+  /// 투표 안좋아요 버튼을 클릭 한다.
+
+  Future<void> postDisLikeByVoteId(String id, User currentUser) async {
+    // 체크 하기
+    print('postLikeByBoteId start');
+    bool isChecked = await _repository.checkIfUserLikedOrNotByVoteId(
+        voteInfo.id, currentUser);
+    print('isChecked : ' + isChecked.toString());
+    if (isChecked) {
+      //체크가 된 상태이면, 체크를 해제 한다.
+      print('post unliking..');
+      await _repository.postUnlikeByVoteId(voteInfo.id, currentUser);
+      print('post unliking..finnish');
+      _repository
+          .fetchPostLikeAndDisLikeByBoteId(this.voteInfo.id)
+          .then((result) {
+        setState(() {
+          Map map = result;
+          //voteLike = map['like'].length.toInt();
+          voteDisLike = map['dislike'].length.toInt();
+        });
+      });
+    } else {
+      print('post liking..');
+      await _repository.postLikeByVoteId(voteInfo.id, currentUser);
+      print('post liking..finnish');
+      _repository
+          .fetchPostLikeAndDisLikeByBoteId(this.voteInfo.id)
+          .then((result) {
+        setState(() {
+          Map map = result;
+          //voteLike = map['like'].length.toInt();
+          voteDisLike = map['dislike'].length.toInt();
+        });
+      });
+    }
+  }
+}
+
+
+/// 투표 화면 정보
+class VoteTitleWidget extends StatelessWidget {
+  VoteInfo voteInfo;
+
+  VoteTitleWidget({this.voteInfo}) {
+    print('VoteTitleConstructor');
+  }
+
+  /// 빌더 함수
+  @override
+  Widget build(BuildContext context) {
+    // TODO: implement build
+    return Container(
+        padding: const EdgeInsets.all(32),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Container(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      voteInfo.desc,
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ));
+  }
+}
+
+/// 투표 버튼 클래스
+class VotebButtonWidget extends StatelessWidget {
+  final VoteInfo voteInfo;
+  final Repository repository;
+  final int voteLike;
+  final int voteDisLike;
+
+  const VotebButtonWidget(
+      {this.voteInfo, this.repository, this.voteLike, this.voteDisLike});
+
+  @override
+  Widget build(BuildContext context) {
+    // TODO: implement build
+    return Container(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _buildButtonColumn(Icons.thumb_up, voteLike, '찬성'),
+          _buildButtonColumn(Icons.thumb_down, voteDisLike, '반대'),
+        ],
+      ),
+    );
+  }
+
+  Column _buildButtonColumn(IconData icon, int number, String label) {
+    User currentUser = new User(
+      username: 'tester',
+      id: 'testId',
+      photoUrl:
+          'https://www.caralyns.com/wp-content/uploads/2014/10/sample-avatar.png',
+      email: '',
+      displayName: '',
+      bio: '',
+      uid: 'uid',
+    );
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        GestureDetector(
+          onTap: () {
+            print("Icon Clicked..");
+            //
+            if (label == '찬성') {
+              //postLikeByVoteId(voteInfo.id, currentUser);
+              //repository.postLikeByVoteId(voteInfo.id, currentUser);
+            } else {
+              repository.postDisLikeByVoteId(voteInfo.id, currentUser);
+            }
             //.fetchPostLikes(widget.documentSnapshot.reference),
           },
           child: Icon(icon),
@@ -456,7 +632,7 @@ class VotebButtonWidget extends StatelessWidget {
   }
 }
 
-class VoteNextButton extends StatelessWidget {
+/*class VoteNextButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -468,4 +644,4 @@ class VoteNextButton extends StatelessWidget {
       ]),
     );
   }
-}
+}*/

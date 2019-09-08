@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'body.dart';
 
+/// 투표 메인 홈
 class VoteHome extends StatelessWidget {
 /*  final topBar = new AppBar(
     backgroundColor: new Color(0xfff8faf8),
