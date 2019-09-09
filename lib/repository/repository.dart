@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_vote/models/comment.dart';
 import 'package:flutter_vote/models/user.dart';
 import 'package:flutter_vote/models/vote.dart';
 import 'package:flutter_vote/models/voteCount.dart';
@@ -46,6 +47,9 @@ class Repository {
   ///2. 추천수가 많은 투표 Collection
   Future<List<DocumentSnapshot>> fetchVoteInfoByLike() => _firebaseProvider.fetchVoteInfoByLike();
 
+  ///3. 스플래쉬에서 가져온다.
+  //fetchVoteInfoBySplash
+
 
   //투 표 등록
   Future<void> addComment(User currentUser, String voteId, String text) => _firebaseProvider.addComment(currentUser, voteId, text);
@@ -62,6 +66,11 @@ class Repository {
 
   Future<void> postUnlikeByVoteId(String voteId, User currentUser) => _firebaseProvider.postUnlikeByVoteId(voteId, currentUser);
   Future<void> postDisLikeByVoteId(String voteId, User currentUser) => _firebaseProvider.postDisLikeByVoteId(voteId, currentUser);
+
+  /// 1. 댓글 업데이트
+  Future<void> postCommentLike(String voteId, Comment comment) => _firebaseProvider.postCommentLike(voteId, comment);
+
+
 
   /// 투표 체크 하기
   /// 1. 좋아요 투표 여부 체크하기

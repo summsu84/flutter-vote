@@ -44,6 +44,22 @@ class FirebaseProvider {
     return _collectionRef.add(map);
   }
 
+  /// 댓글 업데이트
+  Future<void> postCommentLike(String voteId, Comment comment) async
+  {
+    ///1. 해당 투표 정보의 조회수 정보를 가져온다.
+    //print('item number ${item.voteNumber}');
+
+    /// ** 레퍼런스로 바로 접근 가능한가??
+
+    //int viewNumber = await _repository.fetchVoteViewCountByVoteId(item.id);
+
+    await _firestore.collection(VOTE_COMMENT_COLLECTION).document(voteId).collection('comment').document(comment.id).updateData(comment.toMap(comment));
+
+    print('item postCommentLike update');
+
+  }
+
   // Like 등록 하기
   Future<void> postLike(DocumentReference reference, User currentUser) {
     var _like = Like(

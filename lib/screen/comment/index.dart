@@ -5,6 +5,7 @@ import 'package:flutter_vote/models/user.dart';
 import "dart:async";
 
 import 'package:flutter_vote/repository/repository.dart';
+import 'package:flutter_vote/screen/common/bottom.dart';
 
 /// 댓글 화면
 /// 1. 추가작업 내용
@@ -58,6 +59,7 @@ class _CommentScreenState extends State<CommentScreen> {
       },
     );
     return new Scaffold(
+
       appBar: AppBar(
           automaticallyImplyLeading: true,
           //`true` if you want Flutter to automatically add Back Button when needed,
@@ -66,12 +68,12 @@ class _CommentScreenState extends State<CommentScreen> {
             "댓글보기",
             style: TextStyle(color: Colors.black),
           ),
-          backgroundColor: Colors.white,
           leading: IconButton(
             icon: Icon(Icons.arrow_back),
             onPressed: () => Navigator.pop(context, false),
           )),
       body: futureBuilder,
+      bottomNavigationBar: VoteBottomNavigationBar(),
     );
   }
 
@@ -173,8 +175,18 @@ class _CommentScreenState extends State<CommentScreen> {
                   ),
                   Row(
                     children: <Widget>[
-                      new Icon(Icons.thumb_up, color: Colors.grey, size: 18),
-                      Text('100',
+                      GestureDetector(
+                        onTap: () {
+                          print("Post Like Clicked..");
+                          //
+                          postCommentLike(item);
+                          //.fetchPostLikes(widget.documentSnapshot.reference),
+                        },
+                        child: new Icon(Icons.thumb_up, color: Colors.grey, size: 18),
+                      ),
+
+                      /// 좋아요
+                      Text((item.like == null) ? '0' : item.like.length.toString(),
                           style: const TextStyle(
                             fontSize: 12.0,
                             color: Colors.black54,
@@ -182,8 +194,18 @@ class _CommentScreenState extends State<CommentScreen> {
                       new SizedBox(
                         width: 16.0,
                       ),
-                      new Icon(Icons.thumb_down, color: Colors.grey, size: 18),
-                      Text('100',
+                      GestureDetector(
+                        onTap: () {
+                          print("Post disLike Clicked..");
+                          //
+                          //postCommentDislike();
+                          //.fetchPostLikes(widget.documentSnapshot.reference),
+                        },
+                        child: new Icon(Icons.thumb_down, color: Colors.grey, size: 18),
+                      ),
+
+                      /// 안좋아요
+                      Text((item.dislike == null) ? '0' : item.dislike.length.toString(),
                           style: const TextStyle(
                             fontSize: 12.0,
                             color: Colors.black54,
@@ -319,5 +341,41 @@ class _CommentScreenState extends State<CommentScreen> {
       uid: 'uid',
     );
     _repository.addComment(currentUser, voteId, comment);
+  }
+
+  /// 댓글의 좋아요를 증가 시킨다.
+  void postCommentLike(Comment item) async {
+    ///1. 좋아요 리스트를 가져온다.
+    ///2. 좋아요 리스트에 해당 유저가 있으면, 삭제 한다.
+    ///3. 좋아요 리스트에 없으면, 유저를 추가 한다.
+    ///4. 서버에 업데이트 한다.
+
+    if(item.like == null) item.like = new List();
+    else{
+      List tmp = new List();
+      tmp.addAll(item.like);
+      item.like = new List();
+      item.like.addAll(tmp);
+    }
+    String currentUserId = 'uid';
+    // 사용자의 아이디가 uid 라고 가정한다.
+    bool isContain = false;
+    isContain = item.like.contains(currentUserId);
+    if(!isContain)
+      {
+        item.like.add(currentUserId);
+      }else
+        {
+          item.like.remove(currentUserId);
+        }
+
+    //var voteDocuments = await _repository.fetchComment(this.voteId);
+    await _repository.postCommentLike(this.voteId, item);
+    print('repository pos comment like finish');
+    setState((){
+      //item.like = likeList;
+    });
+
+
   }
 }

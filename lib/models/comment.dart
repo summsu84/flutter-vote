@@ -7,12 +7,15 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 ///4. 댓글 정보
 ///5. 사용자 Uid
 class Comment {
+  final String id;
   final String userName;
   final String userId;
   final String avatar;
   final String comment;
   final String timestamp;
   final String userUid;
+  List like;
+  List dislike;
 
   Comment(
       {this.userName,
@@ -20,7 +23,10 @@ class Comment {
         this.avatar,
         this.comment,
         this.timestamp,
-        this.userUid
+        this.userUid,
+        this.like,
+        this.dislike,
+        this.id
       });
 
   Map toMap(Comment comment) {
@@ -31,18 +37,24 @@ class Comment {
     data['comment'] = comment.comment;
     data['timestamp'] = comment.timestamp;
     data['userUid'] = comment.userUid;
+    data['like'] = comment.like;
+    data['dislike'] = comment.dislike;
+    data['id'] = comment.id;
     return data;
   }
 
 
   factory Comment.fromDocument(DocumentSnapshot document) {
     return Comment(
+        id: document.documentID,
       userName: document['userName'],
       userId: document['userId'],
       avatar: document['avatar'],
       comment: document['comment'],
       timestamp: document['timestamp'],
-      userUid: document['userUid']
+      userUid: document['userUid'],
+      like: document['like'],
+      dislike: document['dislike']
     );
   }
 }
